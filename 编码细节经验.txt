@@ -1,0 +1,195 @@
+===前端===
+一、文件结构梳理
+0、Promise：传递异步操作的消息。
+    1、三个状态：
+        1、pending 初始状态，不是成功或失败状态。
+        2、fulfilled 操作成功完成。
+        3、rejected 意味着操作失败。
+    2、只有异步操作的结果，可以决定当前是哪一种状态。
+    3、一旦状态改变，就不会再变。
+    4、有两种构造函数：
+        (resolve, reject)：异步代码执行成功时，会调用resolve(...), 当异步代码执行失败时就会调用reject(...)。
+        (Object)： Object 是resolve(...)方法调用传入的对象。
+    5、Promise.prototype.then 方法返回的是一个新的Promise对象, 链式操作, 可以执行其他异步请求。
+    6、Promise.prototype.catch 方法是Promise.prototype.then(null, rejection)的别名, 用于指定发生错误时的回调函数。
+    7、Promise.all([pro1,pro2,...]) 方法用于将多个Promise实例, 包装成一个新的Promise实例。
+
+1、pont 文件夹下的ads.d.ts文件中：
+    1、namespace defs 中的 "类(class)" 可以看作就是 Promise<T>中的T, 且可以被继承。
+    2、namespace API 中的 "方法(namespace)" 返回的其实就是类型为Promise<T>的对象。
+2、axios 在 /request.ts 中初始化。
+3、router/routers 文件夹下的index.ts中的DynamicImportType指的是Promise<typeof import('*.vue')>类型 -- 定义在router/type.ts中。
+4、types 下的文件是定义文件类型(declare module '*.svg')。 -- 百度
+5、store 下的文件是用作mock数据的。
+6、assets 是静态资源目录。
+7、components 下的文件是组件(子), 交由pages目录进行使用的(父), 数据会通过props进行传递(父 -> 子)。
+8、ts 文件中的 interface 是用来规范属性的, 使用的话需要eg：const accountWorkerOrderList: accountWorkOrderInterface[] = [param1, param2,...]
+9、await和sync, 知道了如何进行request请求
+    1、await 后面会接一个 return new Promise 的函数并执行它, 使用 const res = (await API.???.request(params)) as 返回类型, res 指返回结果 = SimpleResponse.data
+    2、await 只能放在async函数里 async (): Promise<void> => { 代码块, 包含 Promise }
+10、 emits 写自定义事件, 作用:比较清晰知道该组件有那些自定义事件
+    使用:
+        1、emits: ['xxx']
+        2、context.emit('xxx')
+11、知道了toRefs()函数可以将 reactive() 创建出来的响应式对象转换为普通对象
+12、.babelrc Babel是广为使用的ES6转码器, 可以将ES6代码转化为ES5代码。 -- 百度
+13、.browserslistrc 智能兼容旧版本浏览器, 如:css添加前缀等。
+14、.editorconfig 为不同IDE维持相同的编码格式。
+15、.eslintignore Eslint不用校验的文件配置在这里。
+16、.eslintrc.js Eslint配置文件。
+18、.npmrc npm_modules仓库地址配置文件。
+19、.prettierrc vscode格式化配置文件(需要安装插件)。
+20、commitlint.config.js 前端提交信息规范配置文件。
+21、package.json 依赖版本号配置文件。
+22、pont-config.json 根据swagger文档自动生成前端接口层代码(pont 文件夹下的)。
+23、tsconfig.json TypeScript配置文件, 可以配置输出目录、包含文件、排除文件。
+
+===日志1===
+遇到一个问题，将子组件抽离时，发现需要调用子组件的的方法，百度一下，发现很多博客写的都完全一模一样，都是用的vue2.x的语法：
+在调用子组件的 dom 上使用 ref="方法1" 再在当前组件的 methods 的方法下，调用 this.$refs.方法1.子组件方法(参数) 。
+但是这样不符合现有项目版本（现有版本使用 vue 3.0），使用上还是有区别的：
+vue3 调用子组件方法：
+在调用子组件的 dom 上使用 ref="方法1"，还需要再当前组件的 setup() {} 内使用 const 方法1 = ref() ，并且 return 方法1。
+使用的话，需要在 setup() {} 中定义的方法内使用 【方法1.value.子组件方法(参数)】
+如：
+
+<Child ref="method1">
+
+setup() {
+    const method1 = ref() // 不能传值如 ref(null)，不然语法检查还是过不了
+    const method2 = () => {
+        method1.value.子组件方法(参数(可不传))
+    }
+    return {
+        method1,
+        ...
+    }
+}
+
+===日志2===
+props：props 中定义当前组件允许外界传递过来的参数名称
+context：形参是一个上下文对象，包含了以下属性：attrs、solts、parent、root、emit、refs
+
+1、父传子（比较简单，没有踩坑）：在父组件中用 v-bind 进行绑定一个在 return {} 中注册的属性，在子组件中用 props 进行接收
+父：
+<AllFileList :dataSource="dataSource"/>
+子：
+props: {dataSource: {type: Array,required: true}}
+setup (props, context) {console.log(props.dataSource)}
+
+2、子传父（踩坑了）：在子组件设置一个 emits: ['selectedFileName'] 
+setup(props, context){
+    const res = () => {context.emit('selectedFileName')}
+}
+在父组件中进行接收（selectedFileName 绑定的名称必须和子组件中 emits 的名称相同）
+<AllFileList  @selectedFileName="receive" />
+receive 为接收参数的方法，需要在父组件中定义并在 return {} 中注册
+注意：@selectedFileName 必须定义在引入的对应子组件上
+
+===日志3===
+1、使用 Array.map((item, index) => {return item} 进行集合的边遍历边修改。
+2、oFixed() 方法可把 Number 四舍五入为指定小数位数的数字。
+
+
+===后端===
+ObjectUtils.allNotNull()
+Math.toIntExact(long)
+
+QueryWrapper<Entity> queryWrapper = new QueryWrapper<>();
+Entity entity = new Entity();
+entity.setId(entityId);
+entity.setName(entityName);
+queryWrapper.setEntity(entity).groupBy("someThing");
+list(queryWrapper);
+
+
+stream 流
+boolean anyMatch(Predicate<? super T> predicate)
+只要有一个条件满足即返回true
+boolean allMatch(Predicate<? super T> predicate)
+必须全部都满足才会返回true
+boolean noneMatch(Predicate<? super T> predicate)
+全都不满足才会返回true
+
+串行流(stream())：适合存在线程安全问题、阻塞任务、重量级任务，以及需要使用同一事务的逻辑。
+并行流(parallelStream())：适合没有线程安全问题、较单纯的数据处理任务、可以配合 ModelMapper 使用。
+Comparator.comparing(类::属性) 外部比较器
+.collect(Collectors.toMap(Person::getName, p -> p))
+
+
+1、解决 modelMapper 映射错误问题
+ModelMapper modelMapper = new ModelMapper();
+modelMapper.getConfiguration().setAmbiguityIgnored(true);
+
+modelMapper 泛型映射
+modelMapper.map(boList, new TypeToken<List<dto>>() {}.getType());
+
+
+2、查询分页可使用
+类上：   @Api(tags = "标签", description = "接口描述")
+方法上： @ApiOperation("花呗提额码商户列表")
+参数上： @ApiParam(value = "当前页", defaultValue = "1") @RequestParam(required = false, defaultValue = "1") Integer pageIndex,
+        @ApiParam(value = "每页数量", defaultValue = "10") @RequestParam(required = false, defaultValue = "10") Integer pageSize
+
+3、用 stream.map 配合 Dto.builder().build() 可将 Bo 转 Dto (解决 moderMapper 数据映射错误的问题)
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+
+还可以在 Dto 实体类中构建 static 方法，使用 map(Dto::init) 进行数据映射
+public static Dto init(Bo bo) {
+    return Dto;
+}
+
+4、Controller 层的入参若为数组，可采用：
+【@RequestParam("list[]") List<Long> list】 的形式
+
+5、String.format()
+String TOKEN = "http://www.baidu.com?userId=%s"
+HttpUtil.get(String.format(TOKEN, userId));
+// post
+HttpUtil.post(url, body, getTimeoutMillis())
+
+6、超时时间
+Duration timeout = Duration.ofSeconds(30);
+
+7、上传图片
+HttpRequest httpRequest = HttpUtil.createPost(url);
+httpRequest.contentType("image/png");
+httpRequest.form(request.getFilename(), request.getData(), request.getFilename());
+httpRequest.setConnectionTimeout(getTimeoutMillis());
+httpRequest.setReadTimeout(getTimeoutMillis());
+HttpResponse response = httpRequest.execute();
+response.body() 
+
+8、interface ApplicationContextAware extends Aware
+需要在其实现上标注@Component 注解, 交由 Spring 管理。
+可以在其 @Override 的 setApplicationContext 方法内初始化加载自己需要的配置。
+@Component
+@Lazy(false)
+public class RedisContext implements ApplicationContextAware {
+
+    protected static RedisTemplate template;
+
+    public static RedisTemplate getTemplate() {
+        return template;
+    }
+
+    public static void setTemplate(RedisTemplate template) {
+        RedisContext.template = template;
+    }
+
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        template = (RedisTemplate) applicationContext.getBean(StringRedisTemplate.class);
+    }
+}
+
+
+9、JSONObject.parseObject(JSONObject.toJSONString(sortMap, SerializerFeature.SortField), Feature.OrderedField);
+Feature.OrderedField 防止属性乱序, 导致签名失败
+
+
+
+
